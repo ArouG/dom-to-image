@@ -50,8 +50,8 @@
             .then(applyOptions)
             .then(function (clone) {
                 return makeSvgDataUri(clone,
-                    options.width || util.width(node),
-                    options.height || util.height(node)
+                    options.width || node.scrollWidth,
+                    options.height || node.scrollHeight
                 );
             });
 
@@ -71,6 +71,19 @@
     }
 
     /**
+     * no param
+     * return true if MS-Edge is the navigator
+     * */ 
+    function detectEdge() {
+        var ua = window.navigator.userAgent;
+        var edge = ua.indexOf('Edge/');
+        if (edge > 0) {
+            return true;
+        }
+        return false;
+    }  
+    
+    /**
      * @param {Node} node - The DOM Node object to render
      * @param {Object} options - Rendering options, @see {@link toSvg}
      * @return {Promise} - A promise that is fulfilled with a Uint8Array containing RGBA pixel data.
@@ -81,8 +94,8 @@
                 return canvas.getContext('2d').getImageData(
                     0,
                     0,
-                    util.width(node),
-                    util.height(node)
+                    node.scrollWidth,
+                    node.scrollHeight
                 ).data;
             });
     }
@@ -134,8 +147,8 @@
 
         function newCanvas(domNode) {
             var canvas = document.createElement('canvas');
-            canvas.width = options.width || util.width(domNode);
-            canvas.height = options.height || util.height(domNode);
+            canvas.width = options.width || domNode.scrollWidth;
+            canvas.height = options.height || domNode.scrollHeight;
 
             if (options.bgcolor) {
                 var ctx = canvas.getContext('2d');
@@ -332,9 +345,7 @@
             delay: delay,
             asArray: asArray,
             escapeXhtml: escapeXhtml,
-            makeImage: makeImage,
-            width: width,
-            height: height
+            makeImage: makeImage
         };
 
         function mimes() {
@@ -429,6 +440,12 @@
                     resolve(image);
                 };
                 image.onerror = reject;
+                if (detectEdge()){
+                    uri = uri.substr(33);      // 'data:' saute !!
+                    var data = new Blob([uri], { type: "image/svg+xml;charset=utf-8" });
+                    var DOMURL = window.URL || window.webkitURL || window;
+                    uri = DOMURL.createObjectURL(data);
+                }
                 image.src = uri;
             });
         }
@@ -499,24 +516,11 @@
         }
 
         function escapeXhtml(string) {
-            return string.replace(/#/g, '%23').replace(/\n/g, '%0A');
-        }
-
-        function width(node) {
-            var leftBorder = px(node, 'border-left-width');
-            var rightBorder = px(node, 'border-right-width');
-            return node.scrollWidth + leftBorder + rightBorder;
-        }
-
-        function height(node) {
-            var topBorder = px(node, 'border-top-width');
-            var bottomBorder = px(node, 'border-bottom-width');
-            return node.scrollHeight + topBorder + bottomBorder;
-        }
-
-        function px(node, styleProperty) {
-            var value = window.getComputedStyle(node).getPropertyValue(styleProperty);
-            return parseFloat(value.replace('px', ''));
+            if (!detectEdge()){
+                return string.replace(/#/g, '%23').replace(/\n/g, '%0A');
+            } else {
+                return string;
+            }    
         }
     }
 
